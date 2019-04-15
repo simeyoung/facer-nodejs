@@ -8,7 +8,8 @@
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "opencv4nodejs": "^4.14.1"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/simeyoung/facer-nodejs.git"
   }
 }
