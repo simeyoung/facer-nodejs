@@ -32,16 +32,7 @@ async function initAsync() {
 		const imgCompare1Gray = await imgCompare1.bgrToGrayAsync();
 		const imgCompare2Gray = await imgCompare2.bgrToGrayAsync();
 
-		// console.log('img compare 1 mat:', imgCompare1);
-		// console.log('img compare 2 mat:', imgCompare2);
-
-		// console.log(cv);
-
 		const recognizer = new cv.LBPHFaceRecognizer();
-		// const recognizer = new cv.FisherFaceRecognizer();
-		// const recognizer = new cv.EigenFaceRecognizer();
-
-		// recognizer.load('fa')
 
 		await recognizer.trainAsync([grayImg], [1]);
 
