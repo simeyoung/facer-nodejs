@@ -1,9 +1,33 @@
+// @ts-ignore
+process.env.OPENCV4NODEJS_DISABLE_EXTERNAL_MEM_TRACKING = 1;
+
 const fs = require('fs');
 const path = require('path');
 const cv = require('opencv4nodejs');
-const nodewebcam = require('node-webcam');
+// const express = require('express');
+// const app = express();
+// const server = require('http').createServer(app);
+// const io = require('socket.io')(server);
 
 const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
+
+const FPS = 10;
+const wCap = new cv.VideoCapture(0);
+wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
+wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
+
+// app.get('/', (req, res) => {
+// 	res.sendFile(path.join(__dirname, 'index.html'));
+// });
+
+// setInterval(() => {
+// 	const frame = wCap.read();
+// 	const image = cv.imencode('.jpg', frame).toString('base64');
+// 	io.emit('image', image);
+// 	console.log(image);
+// }, 1000 / FPS);
+
+// server.listen(3000);
 
 /*
  *
@@ -11,20 +35,6 @@ const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
  *	perché ora fa il confronto dell'intera immagine
  *
  */
-
-// via Promise
-cv.imreadAsync('./faceimg.jpg')
-	.then(img =>
-		img
-			.bgrToGrayAsync()
-			.then(grayImg => classifier.detectMultiScaleAsync(grayImg))
-			.then(res => {
-				// @ts-ignore
-				const { objects, numDetections } = res;
-				// console.log('imreadAsync', res);
-			})
-	)
-	.catch(err => console.error(err));
 
 async function readfileAsync(path, arr) {
 	return cv.imreadAsync(path).then(res => onReadFile(res, path, arr));
@@ -35,8 +45,10 @@ function onReadFile(img, path, arr) {
 }
 
 function onImage(imgGrey, path, arr) {
-	arr.push(imgGrey);
-	console.log(path, 'processed');
+	const paths = path.split('/');
+	const folderPerson = paths[paths.length - 2];
+	arr.push({ grey: imgGrey, name: folderPerson });
+	console.log(folderPerson, 'processed');
 }
 
 let startTime, endTime;
@@ -97,43 +109,43 @@ async function initAsync() {
 		const recognizer = new cv.LBPHFaceRecognizer();
 
 		await recognizer.trainAsync(
-			/*[grayImg]*/ trainersArr,
+			trainersArr.map(v => v.grey),
 			trainersArr.map((v, i) => i)
 		);
 
 		let isRecognized = false;
-		const cam = initCam();
 
-		// do {
-		cam.capture('captureToRecognize', async (err, data) => {
-			console.log(data);
-			// console.log(data);
-			const img = await cv.imreadAsync(data);
-			const grey = await img.bgrToGrayAsync();
-			const face = await classifier.detectMultiScaleAsync(grey);
+		setInterval(async () => {
+			const frame = await wCap.readAsync();
+			let grey = await frame.bgrToGrayAsync();
+			const { objects } = await classifier.detectMultiScaleAsync(grey);
 
-			console.log(face);
+			if (!objects || objects.length == 0) {
+				// console.error(`${path} non ho riconosciuto nessun viso`);
+				return;
+			}
 
-			// ciclo objects get rect find
+			if (objects.length > 1) {
+				// console.log(`ho trovate più di un viso`);
+				return;
+			}
+
+			grey = grey.getRegion(objects[0]);
 
 			recognizer
 				.predictAsync(grey)
 				.then(res => {
 					console.log('compare: ', res);
 					if (res.confidence < 50) {
-						console.log('hi giovanni');
+						const name = trainersArr
+							.filter((x, i) => i == res.label)
+							.map(v => v.name)[0];
 						isRecognized = true;
+						console.log(`hi ${name}`);
 					}
 				})
 				.catch(err => console.error(err));
-		});
-		// } while (!isRecognized);
-
-		// @ts-ignore
-		// const {
-		// 	objects,
-		// 	numDetections
-		// } = await classifier.detectMultiScaleAsync(grayImg);
+		}, 1000 / FPS);
 
 		console.log(`end recognize at ${end()} second`);
 	} catch (err) {
@@ -141,42 +153,4 @@ async function initAsync() {
 	}
 }
 
-function initCam() {
-	//Default options
-
-	var opts = {
-		//Picture related
-		width: 1280,
-		height: 720,
-		quality: 100,
-		//Delay to take shot
-		delay: 0,
-		//Save shots in memory
-		saveShots: true,
-		// [jpeg, png] support varies
-		// Webcam.OutputTypes
-		output: 'jpeg',
-		//Which camera to use
-		//Use Webcam.list() for results
-		//false for default device
-		device: false,
-		// [location, buffer, base64]
-		// Webcam.CallbackReturnTypes
-		callbackReturn: 'location',
-		//Logging
-		verbose: false
-	};
-
-	return nodewebcam.create(opts);
-}
-
 initAsync();
-
-// const isRecognized = false;
-// const cam = initCam();
-
-// do {
-// 	cam.capture('captureToRecognize', (err, data) => {
-// 		// console.log(data);
-// 	});
-// } while (isRecognized);
