@@ -2,36 +2,68 @@
 process.env.OPENCV4NODEJS_DISABLE_EXTERNAL_MEM_TRACKING = 1;
 
 const fs = require('fs');
-const path = require('path');
 const cv = require('opencv4nodejs');
+const path = require('path');
 
 const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
 
 const FPS = 10;
+const TIMECOMPARE = 3;
+
 const wCap = new cv.VideoCapture(0);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
 
-/*
- *
- *	Importante fare il CROP della faccia
- *	perché ora fa il confronto dell'intera immagine
- *
- */
+let comparators = [];
 
+/**
+ * @param {string} path
+ * @param {any[]} arr
+ */
 async function readfileAsync(path, arr) {
 	return cv.imreadAsync(path).then(res => onReadFile(res, path, arr));
 }
 
+/**
+ * @param {any} img
+ * @param {string} path
+ * @param {{ grey: any; name: any; }[]} arr
+ */
 function onReadFile(img, path, arr) {
 	return img.bgrToGrayAsync().then(grey => onImage(grey, path, arr));
 }
 
+/**
+ * @param {any} imgGrey
+ * @param {string} path
+ * @param {{ grey: any; name: any; }[]} arr
+ */
 function onImage(imgGrey, path, arr) {
 	const paths = path.split('/');
 	const folderPerson = paths[paths.length - 2];
 	arr.push({ grey: imgGrey, name: folderPerson });
 	console.log(folderPerson, 'processed');
+}
+
+/**
+ * @param {{ label: any; confidence: any; }} res
+ * @param {{grey: any; name: number}[]} trainers
+ */
+function onPrediction(res, trainers) {
+	const name = trainers.filter((x, i) => i == res.label).map(v => v.name)[0];
+	const prediction = { ...res, name };
+
+	if (comparators.length == FPS * TIMECOMPARE) {
+		// @ts-ignore
+		const min = comparators.reduce(minExpression);
+		// console.log(min);
+		console.log(`hi ${min.name} confidence: ${min.confidence}`);
+		comparators = [];
+	}
+
+	if (res.confidence < 100) {
+		comparators.push(prediction);
+	}
 }
 
 let startTime, endTime;
@@ -60,8 +92,8 @@ async function initAsync() {
 
 		const realtivepath = path.join(__dirname, '/images/trainers');
 		const trainers = fs.readdirSync(realtivepath);
-		const trainersPromiseArr = [];
-		const trainersArr = [];
+		let trainersPromiseArr = [];
+		let trainersArr = [];
 
 		// remove DS_STORE if exist
 		if (trainers[0] == '.DS_Store') {
@@ -117,16 +149,7 @@ async function initAsync() {
 
 			recognizer
 				.predictAsync(grey)
-				.then(res => {
-					const name = trainersArr
-						.filter((x, i) => i == res.label)
-						.map(v => v.name)[0];
-					console.log('compare: ', { ...res, name });
-					if (res.confidence < 50) {
-						isRecognized = true;
-						console.log(`hi ${name}`);
-					}
-				})
+				.then(res => onPrediction(res, trainersArr))
 				.catch(err => console.error(err));
 		}, 1000 / FPS);
 
@@ -137,3 +160,7 @@ async function initAsync() {
 }
 
 initAsync();
+
+function minExpression(min, next) {
+	return min.confidence < next.confidence? min : next;
+}
