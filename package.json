@@ -14,10 +14,7 @@
     "url": "https://github.com/simeyoung/facer-nodejs.git"
   },
   "dependencies": {
-    "express": "^4.16.4",
-    "node-webcam": "^0.4.6",
-    "opencv4nodejs": "^4.14.1",
-    "socket.io": "^2.2.0"
+    "opencv4nodejs": "^4.14.1"
   },
   "devDependencies": {
     "@types/node": "^11.13.4"

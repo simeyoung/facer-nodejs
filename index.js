@@ -4,10 +4,6 @@ process.env.OPENCV4NODEJS_DISABLE_EXTERNAL_MEM_TRACKING = 1;
 const fs = require('fs');
 const path = require('path');
 const cv = require('opencv4nodejs');
-// const express = require('express');
-// const app = express();
-// const server = require('http').createServer(app);
-// const io = require('socket.io')(server);
 
 const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
 
@@ -15,19 +11,6 @@ const FPS = 10;
 const wCap = new cv.VideoCapture(0);
 wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
 wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
-
-// app.get('/', (req, res) => {
-// 	res.sendFile(path.join(__dirname, 'index.html'));
-// });
-
-// setInterval(() => {
-// 	const frame = wCap.read();
-// 	const image = cv.imencode('.jpg', frame).toString('base64');
-// 	io.emit('image', image);
-// 	console.log(image);
-// }, 1000 / FPS);
-
-// server.listen(3000);
 
 /*
  *
@@ -135,11 +118,11 @@ async function initAsync() {
 			recognizer
 				.predictAsync(grey)
 				.then(res => {
-					console.log('compare: ', res);
+					const name = trainersArr
+						.filter((x, i) => i == res.label)
+						.map(v => v.name)[0];
+					console.log('compare: ', { ...res, name });
 					if (res.confidence < 50) {
-						const name = trainersArr
-							.filter((x, i) => i == res.label)
-							.map(v => v.name)[0];
 						isRecognized = true;
 						console.log(`hi ${name}`);
 					}
