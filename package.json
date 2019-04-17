@@ -14,8 +14,10 @@
     "url": "https://github.com/simeyoung/facer-nodejs.git"
   },
   "dependencies": {
+    "@aspnet/signalr": "^1.1.4",
     "express": "^4.16.4",
     "opencv4nodejs": "^4.14.1",
+    "pi-camera-connect": "^0.2.0",
     "socket.io": "^2.2.0"
   },
   "devDependencies": {

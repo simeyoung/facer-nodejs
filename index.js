@@ -2,18 +2,14 @@
 process.env.OPENCV4NODEJS_DISABLE_EXTERNAL_MEM_TRACKING = 1;
 
 const fs = require('fs');
+const { LBPHFaceRecognizer, CascadeClassifier } = require('opencv4nodejs');
 const cv = require('opencv4nodejs');
 const path = require('path');
 const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
-const readline = require('readline');
-
-const rl = readline.createInterface({
-	input: process.stdin,
-	output: process.stdout
-});
+const { StreamCamera, Codec } = require('pi-camera-connect');
 
 app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
@@ -21,23 +17,18 @@ app.get('/', (req, res) => {
 
 server.listen(3000);
 
-const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
+const classifier = new CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
 
 const FPS = 10;
 const TIMECOMPARE = 3;
+const PORTNUMBER = 0;
 
 let comparators = [];
 let wCap;
 
-rl.question('Inserisci numero porta webcam: ', async portnumber => {
-	wCap = new cv.VideoCapture(parseInt(portnumber));
-	wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
-	wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
-
-	initAsync();
-
-	rl.close();
-});
+// wCap = new cv.VideoCapture(PORTNUMBER);
+// wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
+// wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
 
 /**
  * @param {string} path
@@ -53,6 +44,9 @@ async function readfileAsync(path, arr) {
  * @param {{ grey: any; name: any; }[]} arr
  */
 function onReadFile(img, path, arr) {
+	/**
+	 * @param {any} grey
+	 */
 	return img.bgrToGrayAsync().then(grey => onImage(grey, path, arr));
 }
 
@@ -109,9 +103,70 @@ function end() {
 	return seconds;
 }
 
+/**
+ * @param {Buffer} img
+ * @param {undefined} [rect]
+ */
 async function onEncodedAsync(img, rect) {
 	const base64 = img.toString('base64');
 	io.emit('image', base64);
+}
+
+/**
+ * @param {{ predictAsync: (arg0: any) => { then: (arg0: (res: any) => void) => { catch: (arg0: (err: any) => void) => void; }; }; }} recognizer
+ * @param {{ grey: any; name: number; }[]} trainersArr
+ */
+async function onFrame(recognizer, trainersArr, charData) {
+	const rows = 300; // height
+	const cols = 300; // width
+
+	const frame = new cv.Mat(
+		Buffer.from(charData),
+		rows,
+		cols,
+		cv.CV_8UC3
+	);
+	let grey = await frame.bgrToGrayAsync();
+	const { objects } = await classifier.detectMultiScaleAsync(grey);
+
+	let rect;
+	let rectFounded = false;
+
+	if (!objects || objects.length == 0) {
+		// console.error(`${path} non ho riconosciuto nessun viso`);
+		rect = null;
+	} else if (objects.length > 1) {
+		// console.log(`ho trovate più di un viso`);
+		rect = null;
+	} else {
+		// viso corretto
+		rect = objects[0];
+	}
+
+	if (rect) {
+		grey = grey.getRegion(rect);
+		frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
+		rectFounded = true;
+	}
+
+	cv.imencodeAsync('.jpg', frame)
+		.then(res => onEncodedAsync(res))
+		.catch(err => console.log(err));
+
+	if (!rectFounded) {
+		return;
+	}
+
+	/**
+	 * @param {{ label: any; confidence: any; }} res
+	 */
+	/**
+	 * @param {any} err
+	 */
+	recognizer
+		.predictAsync(grey)
+		.then(res => onPrediction(res, trainersArr))
+		.catch(err => console.error(err));
 }
 
 async function initAsync() {
@@ -151,7 +206,7 @@ async function initAsync() {
 
 		await Promise.all(trainersPromiseArr);
 
-		const recognizer = new cv.LBPHFaceRecognizer();
+		const recognizer = new LBPHFaceRecognizer();
 
 		await recognizer.trainAsync(
 			trainersArr.map(v => v.grey),
@@ -160,44 +215,21 @@ async function initAsync() {
 
 		let isRecognized = false;
 
-		setInterval(async () => {
-			const frame = await wCap.readAsync();
-			let grey = await frame.bgrToGrayAsync();
-			const { objects } = await classifier.detectMultiScaleAsync(grey);
+		// setInterval(async () => {
 
-			let rect;
-			let rectFounded = false;
+		// }, 1000 / FPS);
 
-			if (!objects || objects.length == 0) {
-				// console.error(`${path} non ho riconosciuto nessun viso`);
-				rect = null;
-			} else if (objects.length > 1) {
-				// console.log(`ho trovate più di un viso`);
-				rect = null;
-			} else {
-				// viso corretto
-				rect = objects[0];
-			}
+		const stream = new StreamCamera({
+			codec: Codec.H264
+		});
 
-			if (rect) {
-				grey = grey.getRegion(rect);
-				frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
-				rectFounded = true;
-			}
+		const video = stream.createStream();
 
-			cv.imencodeAsync('.jpg', frame)
-				.then(res => onEncodedAsync(res))
-				.catch(err => console.log(err));
+		await stream.startCapture();
 
-			if (!rectFounded) {
-				return;
-			}
-
-			recognizer
-				.predictAsync(grey)
-				.then(res => onPrediction(res, trainersArr))
-				.catch(err => console.error(err));
-		}, 1000 / FPS);
+		// We can also listen to data events as they arrive
+		video.on('data', async data => onFrame(recognizer, trainersArr, data));
+		video.on('end', data => console.log('Video stream has ended'));
 
 		console.log(`end recognize at ${end()} second`);
 	} catch (err) {
@@ -205,6 +237,16 @@ async function initAsync() {
 	}
 }
 
+/**
+ * @param {{ confidence: number; }} min
+ * @param {{ confidence: number; }} next
+ */
 function minExpression(min, next) {
 	return min.confidence < next.confidence ? min : next;
 }
+
+/*
+ *   Start process
+ */
+
+initAsync();
