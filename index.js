@@ -117,8 +117,8 @@ async function onEncodedAsync(img, rect) {
  * @param {{ grey: any; name: number; }[]} trainersArr
  */
 async function onFrame(recognizer, trainersArr, charData) {
-	const rows = 300; // height
-	const cols = 300; // width
+	const rows = 480; // height
+	const cols = 640; // width
 
 	const frame = new cv.Mat(charData, rows, cols, cv.CV_8UC3);
 	let grey = await frame.bgrToGrayAsync();
