@@ -117,10 +117,11 @@ async function onEncodedAsync(img, rect) {
  * @param {{ grey: any; name: number; }[]} trainersArr
  */
 async function onFrame(recognizer, trainersArr, charData) {
-	const rows = 300; // height
-	const cols = 300; // width
+	const rows = 480; // height
+	const cols = 640; // width
 
-    let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
+    let frame = await cv.imdecodeAsync(charData);
+    // let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
 	let grey = await frame.bgrToGrayAsync();
 	const { objects } = await classifier.detectMultiScaleAsync(grey);
 
