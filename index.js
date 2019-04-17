@@ -118,7 +118,10 @@ async function onEncodedAsync(img, rect) {
  */
 async function onFrame(recognizer, trainersArr, charData) {
 	const rows = 100; // height
-	const cols = 100; // width
+    const cols = 100; // width
+    
+    console.log(charData);
+    return;
 
 	const frame = new cv.Mat(charData, rows, cols);
 	let grey = await frame.bgrToGrayAsync();
