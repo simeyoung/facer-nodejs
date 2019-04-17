@@ -120,12 +120,7 @@ async function onFrame(recognizer, trainersArr, charData) {
 	const rows = 300; // height
 	const cols = 300; // width
 
-	const frame = new cv.Mat(
-		Buffer.from(charData),
-		rows,
-		cols,
-		cv.CV_8UC3
-	);
+	const frame = new cv.Mat(Buffer.from(charData), rows, cols, cv.CV_8UC3);
 	let grey = await frame.bgrToGrayAsync();
 	const { objects } = await classifier.detectMultiScaleAsync(grey);
 
@@ -220,7 +215,9 @@ async function initAsync() {
 		// }, 1000 / FPS);
 
 		const stream = new StreamCamera({
-			codec: Codec.H264
+			codec: Codec.H264,
+			width: 640,
+            height: 480
 		});
 
 		const video = stream.createStream();
