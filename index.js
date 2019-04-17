@@ -120,49 +120,50 @@ async function onFrame(recognizer, trainersArr, charData) {
 	const rows = 480; // height
 	const cols = 640; // width
 
-    let frame = await cv.imdecodeAsync(charData);
-    // let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
-	let grey = await frame.bgrToGrayAsync();
-	const { objects } = await classifier.detectMultiScaleAsync(grey);
+	let frame = await cv.imdecodeAsync(charData);
+	// // let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
+	// let grey = await frame.bgrToGrayAsync();
+	// const { objects } = await classifier.detectMultiScaleAsync(grey);
 
-	let rect;
-	let rectFounded = false;
+	// let rect;
+	// let rectFounded = false;
 
-	if (!objects || objects.length == 0) {
-		// console.error(`${path} non ho riconosciuto nessun viso`);
-		rect = null;
-	} else if (objects.length > 1) {
-		// console.log(`ho trovate più di un viso`);
-		rect = null;
-	} else {
-		// viso corretto
-		rect = objects[0];
-	}
+	// if (!objects || objects.length == 0) {
+	// 	// console.error(`${path} non ho riconosciuto nessun viso`);
+	// 	rect = null;
+	// } else if (objects.length > 1) {
+	// 	// console.log(`ho trovate più di un viso`);
+	// 	rect = null;
+	// } else {
+	// 	// viso corretto
+	// 	rect = objects[0];
+	// }
 
-	if (rect) {
-		grey = grey.getRegion(rect);
-		frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
-		rectFounded = true;
-	}
+	// if (rect) {
+	// 	grey = grey.getRegion(rect);
+	// 	frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
+	// 	rectFounded = true;
+	// }
 
 	cv.imencodeAsync('.jpg', frame)
 		.then(res => onEncodedAsync(res))
 		.catch(err => console.log(err));
 
-	if (!rectFounded) {
-		return;
-	}
 
-	/**
-	 * @param {{ label: any; confidence: any; }} res
-	 */
-	/**
-	 * @param {any} err
-	 */
-	recognizer
-		.predictAsync(grey)
-		.then(res => onPrediction(res, trainersArr))
-		.catch(err => console.error(err));
+	// if (!rectFounded) {
+	// 	return;
+	// }
+
+	// /**
+	//  * @param {{ label: any; confidence: any; }} res
+	//  */
+	// /**
+	//  * @param {any} err
+	//  */
+	// recognizer
+	// 	.predictAsync(grey)
+	// 	.then(res => onPrediction(res, trainersArr))
+	// 	.catch(err => console.error(err));
 }
 
 async function initAsync() {
@@ -218,8 +219,8 @@ async function initAsync() {
 		const stream = new StreamCamera({
 			codec: Codec.MJPEG,
 			width: 640,
-            height: 480,
-            fps: 15
+			height: 480,
+			fps: 15
 		});
 
 		const video = stream.createStream();
