@@ -216,7 +216,7 @@ async function initAsync() {
 		// }, 1000 / FPS);
 
 		const stream = new StreamCamera({
-			codec: Codec.H264,
+			codec: Codec.MJPEG,
 			width: 640,
             height: 480,
             fps: 15
