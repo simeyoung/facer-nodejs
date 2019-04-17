@@ -8,6 +8,12 @@ const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
+const readline = require('readline');
+
+const rl = readline.createInterface({
+	input: process.stdin,
+	output: process.stdout
+});
 
 app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
@@ -20,11 +26,18 @@ const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
 const FPS = 10;
 const TIMECOMPARE = 3;
 
-const wCap = new cv.VideoCapture(0);
-wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
-wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
-
 let comparators = [];
+let wCap;
+
+rl.question('Inserisci numero porta webcam: ', async portnumber => {
+	wCap = new cv.VideoCapture(parseInt(portnumber));
+	wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
+	wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
+
+	initAsync();
+
+	rl.close();
+});
 
 /**
  * @param {string} path
@@ -191,8 +204,6 @@ async function initAsync() {
 		console.error(err);
 	}
 }
-
-initAsync();
 
 function minExpression(min, next) {
 	return min.confidence < next.confidence ? min : next;
