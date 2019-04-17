@@ -121,7 +121,7 @@ async function onFrame(recognizer, trainersArr, charData) {
 	const cols = 100; // width
 
     let frame;
-	let grey = frame = new cv.Mat(charData, rows, cols, cv.COLOR_BGR2GRAY);
+	let grey = frame = new cv.Mat(charData, rows, cols, cv.CV_8UC1);
 	// let grey = await frame.bgrToGrayAsync();
 	const { objects } = await classifier.detectMultiScaleAsync(grey);
 
