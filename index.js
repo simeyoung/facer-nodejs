@@ -152,25 +152,33 @@ async function initAsync() {
 			let grey = await frame.bgrToGrayAsync();
 			const { objects } = await classifier.detectMultiScaleAsync(grey);
 
+			let rect;
+			let rectFounded = false;
+
 			if (!objects || objects.length == 0) {
 				// console.error(`${path} non ho riconosciuto nessun viso`);
-				io.emit('hello_man', null);
-				return;
-			}
-
-			if (objects.length > 1) {
+				rect = null;
+			} else if (objects.length > 1) {
 				// console.log(`ho trovate più di un viso`);
-				io.emit('hello_man', null);
-				return;
+				rect = null;
+			} else {
+				// viso corretto
+				rect = objects[0];
 			}
 
-			const rect = objects[0];
-			grey = grey.getRegion(rect);
-			frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
+			if (rect) {
+				grey = grey.getRegion(rect);
+				frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
+				rectFounded = true;
+			}
 
 			cv.imencodeAsync('.jpg', frame)
 				.then(res => onEncodedAsync(res))
 				.catch(err => console.log(err));
+
+			if (!rectFounded) {
+				return;
+			}
 
 			recognizer
 				.predictAsync(grey)
