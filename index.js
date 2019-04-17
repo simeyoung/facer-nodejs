@@ -4,6 +4,16 @@ process.env.OPENCV4NODEJS_DISABLE_EXTERNAL_MEM_TRACKING = 1;
 const fs = require('fs');
 const cv = require('opencv4nodejs');
 const path = require('path');
+const express = require('express');
+const app = express();
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
+
+app.get('/', (req, res) => {
+	res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+server.listen(3000);
 
 const classifier = new cv.CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
 
@@ -59,6 +69,8 @@ function onPrediction(res, trainers) {
 		// console.log(min);
 		console.log(`hi ${min.name} confidence: ${min.confidence}`);
 		comparators = [];
+
+		io.emit('hello_man', min.name);
 	}
 
 	if (res.confidence < 100) {
@@ -82,6 +94,11 @@ function end() {
 	// get seconds
 	const seconds = Math.round(timeDiff);
 	return seconds;
+}
+
+async function onEncodedAsync(img, rect) {
+	const base64 = img.toString('base64');
+	io.emit('image', base64);
 }
 
 async function initAsync() {
@@ -137,15 +154,23 @@ async function initAsync() {
 
 			if (!objects || objects.length == 0) {
 				// console.error(`${path} non ho riconosciuto nessun viso`);
+				io.emit('hello_man', null);
 				return;
 			}
 
 			if (objects.length > 1) {
 				// console.log(`ho trovate più di un viso`);
+				io.emit('hello_man', null);
 				return;
 			}
 
-			grey = grey.getRegion(objects[0]);
+			const rect = objects[0];
+			grey = grey.getRegion(rect);
+			frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
+
+			cv.imencodeAsync('.jpg', frame)
+				.then(res => onEncodedAsync(res))
+				.catch(err => console.log(err));
 
 			recognizer
 				.predictAsync(grey)
@@ -162,5 +187,5 @@ async function initAsync() {
 initAsync();
 
 function minExpression(min, next) {
-	return min.confidence < next.confidence? min : next;
+	return min.confidence < next.confidence ? min : next;
 }
