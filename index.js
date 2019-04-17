@@ -217,7 +217,8 @@ async function initAsync() {
 		const stream = new StreamCamera({
 			codec: Codec.H264,
 			width: 640,
-            height: 480
+            height: 480,
+            fps: 15
 		});
 
 		const video = stream.createStream();
