@@ -9,7 +9,8 @@ const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
-const { StreamCamera, Codec } = require('pi-camera-connect');
+// @ts-ignore
+const picamera = require('raspberry-pi-camera-native');
 
 app.get('/', (req, res) => {
 	res.sendFile(path.join(__dirname, 'index.html'));
@@ -120,8 +121,8 @@ async function onFrame(recognizer, trainersArr, charData) {
 	const rows = 480; // height
 	const cols = 640; // width
 
-    let frame = await cv.imdecodeAsync(charData);
-    // let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
+	let frame = await cv.imdecodeAsync(charData);
+	// let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
 	let grey = await frame.bgrToGrayAsync();
 	const { objects } = await classifier.detectMultiScaleAsync(grey);
 
@@ -215,20 +216,25 @@ async function initAsync() {
 
 		// }, 1000 / FPS);
 
-		const stream = new StreamCamera({
-			codec: Codec.MJPEG,
-			width: 640,
-            height: 480,
-            fps: 15
-		});
+		// const stream = new StreamCamera({
+		// 	codec: Codec.MJPEG,
+		// 	width: 640,
+		//     height: 480,
+		//     fps: 15
+		// });
 
-		const video = stream.createStream();
+		// const video = stream.createStream();
 
-		await stream.startCapture();
+		// await stream.startCapture();
 
 		// We can also listen to data events as they arrive
-		video.on('data', async data => onFrame(recognizer, trainersArr, data));
-		video.on('end', data => console.log('Video stream has ended'));
+		// video.on('data', async data => onFrame(recognizer, trainersArr, data));
+		// video.on('end', data => console.log('Video stream has ended'));
+
+		picamera.on('frame', async data => onFrame(recognizer, trainersArr, data));
+
+		// start capture
+		picamera.start();
 
 		console.log(`end recognize at ${end()} second`);
 	} catch (err) {
