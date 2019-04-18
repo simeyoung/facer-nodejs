@@ -121,10 +121,10 @@ async function onFrame(recognizer, trainersArr, charData) {
 	const rows = 480; // height
 	const cols = 640; // width
 
-	let frame = await cv.imdecodeAsync(charData);
-	console.log(`[CAMERA] frame decoded: ${Buffer.byteLength(charData)}`);
+	// let frame = await cv.imdecodeAsync(charData);
 
-	// let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
+	let frame = new cv.Mat(charData, rows, cols, /*cv.CV_16SC4*/ cv.CV_8UC3);
+	console.log(`[CAMERA] frame decoded: ${Buffer.byteLength(charData)}`);
 	let grey = await frame.bgrToGrayAsync();
 	const { objects } = await classifier.detectMultiScaleAsync(grey);
 
