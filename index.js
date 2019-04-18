@@ -122,13 +122,7 @@ async function onFrame(recognizer, trainersArr, charData) {
 	const cols = 640; // width
 
 	let frame = await cv.imdecodeAsync(charData);
-
-	cv.imencodeAsync('.jpg', frame)
-		.then(res => onEncodedAsync(res))
-		.catch(err => console.log(err));
-
-	console.log(`[CAMERA] frame decoded: ${frame.type}`);
-	return;
+	console.log(`[CAMERA] frame decoded: ${Buffer.byteLength(charData)}`);
 
 	// let frame = new cv.Mat(charData, rows, cols, cv.CV_16SC4);
 	let grey = await frame.bgrToGrayAsync();
@@ -157,6 +151,8 @@ async function onFrame(recognizer, trainersArr, charData) {
 	cv.imencodeAsync('.jpg', frame)
 		.then(res => onEncodedAsync(res))
 		.catch(err => console.log(err));
+
+	return;
 
 	if (!rectFounded) {
 		return;
