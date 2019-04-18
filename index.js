@@ -122,6 +122,11 @@ async function onFrame(recognizer, trainersArr, charData) {
 	const cols = 640; // width
 
 	let frame = await cv.imdecodeAsync(charData);
+
+	cv.imencodeAsync('.jpg', frame)
+		.then(res => onEncodedAsync(res))
+		.catch(err => console.log(err));
+
 	console.log(`[CAMERA] frame decoded: ${frame.type}`);
 	return;
 
