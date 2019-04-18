@@ -169,7 +169,6 @@ async function onFrame(recognizer, trainersArr, charData) {
 async function initAsync() {
 	// using async await
 	try {
-		start();
 		console.log(`start processing images...`);
 
 		const realtivepath = path.join(__dirname, '/images/trainers');
@@ -236,16 +235,16 @@ async function initAsync() {
 		);
 
 		const picameraOptions = {
-			width: 1280,
-			height: 720,
+			width: 640,
+			height: 480,
 			fps: 15,
 			encoding: 'JPEG',
-			quality: 75
+			quality: 50
 		};
 		// start capture
-		picamera.start(picameraOptions, () => console.log('[CAMERA] started..'));
-
-		console.log(`end recognize at ${end()} second`);
+		picamera.start(picameraOptions, () =>
+			console.log('[CAMERA] started..')
+		);
 	} catch (err) {
 		console.error(err);
 	}
