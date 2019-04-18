@@ -60,7 +60,7 @@ function onImage(imgGrey, path, arr) {
 	const paths = path.split('/');
 	const folderPerson = paths[paths.length - 2];
 	arr.push({ grey: imgGrey, name: folderPerson });
-	console.log(folderPerson, 'processed');
+	console.log(`[PROCESSED] ${folderPerson} img: ${paths[paths.length - 1]}`);
 }
 
 /**
@@ -231,10 +231,19 @@ async function initAsync() {
 		// video.on('data', async data => onFrame(recognizer, trainersArr, data));
 		// video.on('end', data => console.log('Video stream has ended'));
 
-		picamera.on('frame', async data => onFrame(recognizer, trainersArr, data));
+		picamera.on('frame', async data =>
+			onFrame(recognizer, trainersArr, data)
+		);
 
+		const picameraOptions = {
+			width: 1280,
+			height: 720,
+			fps: 15,
+			encoding: 'JPEG',
+			quality: 75
+		};
 		// start capture
-		picamera.start();
+		picamera.start(picameraOptions, () => console.log('[CAMERA] started..'));
 
 		console.log(`end recognize at ${end()} second`);
 	} catch (err) {
