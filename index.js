@@ -1,269 +1,83 @@
-// @ts-ignore
-process.env.OPENCV4NODEJS_DISABLE_EXTERNAL_MEM_TRACKING = 1;
-
-const fs = require('fs');
-const { LBPHFaceRecognizer, CascadeClassifier } = require('opencv4nodejs');
+#!/usr/bin/env node
 const cv = require('opencv4nodejs');
-const path = require('path');
-const express = require('express');
-const app = express();
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
 // @ts-ignore
-const picamera = require('raspberry-pi-camera-native');
+// const picamera = require('raspberry-pi-camera-native');
+const io = require('socket.io-client');
+const socket = io('http://10.50.120.118:3000');
 
-app.get('/', (req, res) => {
-	res.sendFile(path.join(__dirname, 'index.html'));
+socket.on('connect', () => {
+	console.log(`[SOCKET] websocket connected`);
+	// socket.emit('server-connected', true);
+});
+socket.on('disconnect', () => console.log(`[SOCKET] websocket disconnected`));
+socket.on('socket-started', () => console.log('socket started'));
+
+socket.on('connection', sockett => {
+	console.log(sockett);
 });
 
-server.listen(3000);
+// add frame data event listener
+// picamera.on('frame', async frameData => {
+// 	console.log(frameData);
 
-const classifier = new CascadeClassifier(cv.HAAR_FRONTALFACE_ALT2);
+// 	cv.imdecodeAsync(frameData)
+// 		.then(() => console.log('eseguito sul cesso'))
+// 		.catch(err => console.error(err));
+// });
 
-const FPS = 10;
-const TIMECOMPARE = 3;
-const PORTNUMBER = 0;
+async function onFrame(charData) {
+	try {
+		// decode, transform gray, rescale and encode image
+		const encoded = await cv
+			.imdecodeAsync(charData)
+			.then(frame => frame.bgrToGrayAsync())
+			.then(grey => grey.rescaleAsync(0.5))
+			.then(res => cv.imencodeAsync('.jpg', res));
 
-let comparators = [];
-let wCap;
+		const sizeKB = encoded.byteLength / 1000 / 8;
 
-// wCap = new cv.VideoCapture(PORTNUMBER);
-// wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
-// wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
-
-/**
- * @param {string} path
- * @param {any[]} arr
- */
-async function readfileAsync(path, arr) {
-	return cv.imreadAsync(path).then(res => onReadFile(res, path, arr));
-}
-
-/**
- * @param {any} img
- * @param {string} path
- * @param {{ grey: any; name: any; }[]} arr
- */
-function onReadFile(img, path, arr) {
-	/**
-	 * @param {any} grey
-	 */
-	return img.bgrToGrayAsync().then(grey => onImage(grey, path, arr));
-}
-
-/**
- * @param {any} imgGrey
- * @param {string} path
- * @param {{ grey: any; name: any; }[]} arr
- */
-function onImage(imgGrey, path, arr) {
-	const paths = path.split('/');
-	const folderPerson = paths[paths.length - 2];
-	arr.push({ grey: imgGrey, name: folderPerson });
-	console.log(`[PROCESSED] ${folderPerson} img: ${paths[paths.length - 1]}`);
-}
-
-/**
- * @param {{ label: any; confidence: any; }} res
- * @param {{grey: any; name: number}[]} trainers
- */
-function onPrediction(res, trainers) {
-	const name = trainers.filter((x, i) => i == res.label).map(v => v.name)[0];
-	const prediction = { ...res, name };
-
-	if (comparators.length == FPS * TIMECOMPARE) {
-		// @ts-ignore
-		const min = comparators.reduce(minExpression);
-		// console.log(min);
-		console.log(`hi ${min.name} confidence: ${min.confidence}`);
-		comparators = [];
-
-		io.emit('hello_man', min.name);
-	}
-
-	if (res.confidence < 100) {
-		comparators.push(prediction);
+		socket.emit('image', encoded.toString('base64'));
+		console.log(`[SOCKET] sending buffer img ${sizeKB} KB`);
+	} catch (err) {
+		console.log(err);
 	}
 }
 
-let startTime, endTime;
+// picamera.on('frame', async charData => onFrame(charData));
 
-function start() {
-	startTime = new Date();
-}
+const picameraOptions = {
+	width: 640,
+	height: 480,
+	fps: 15,
+	encoding: 'JPEG',
+	quality: 50
+};
 
-function end() {
-	endTime = new Date();
-	// @ts-ignore
-	let timeDiff = endTime - startTime; //in ms
-	// strip the ms
-	timeDiff /= 1000;
+// start capture
+// picamera.start(picameraOptions);
 
-	// get seconds
-	const seconds = Math.round(timeDiff);
-	return seconds;
-}
+const wCap = new cv.VideoCapture(0);
+wCap.set(cv.CAP_PROP_FRAME_WIDTH, 300);
+wCap.set(cv.CAP_PROP_FRAME_HEIGHT, 300);
 
-/**
- * @param {Buffer} img
- * @param {undefined} [rect]
- */
-async function onEncodedAsync(img, rect) {
-	const base64 = img.toString('base64');
-	io.emit('image', base64);
-}
-
-/**
- * @param {{ predictAsync: (arg0: any) => { then: (arg0: (res: any) => void) => { catch: (arg0: (err: any) => void) => void; }; }; }} recognizer
- * @param {{ grey: any; name: number; }[]} trainersArr
- */
-async function onFrame(recognizer, trainersArr, charData) {
-	const rows = 480; // height
-	const cols = 640; // width
-
-	// let frame = await cv.imdecodeAsync(charData);
-
-	let frame = new cv.Mat(charData, rows, cols, /*cv.CV_16SC4*/ cv.CV_8UC3);
-	console.log(`[CAMERA] frame decoded: ${Buffer.byteLength(charData)}`);
-	let grey = await frame.bgrToGrayAsync();
-	const { objects } = await classifier.detectMultiScaleAsync(grey);
-
-	let rect;
-	let rectFounded = false;
-
-	if (!objects || objects.length == 0) {
-		// console.error(`${path} non ho riconosciuto nessun viso`);
-		rect = null;
-	} else if (objects.length > 1) {
-		// console.log(`ho trovate più di un viso`);
-		rect = null;
-	} else {
-		// viso corretto
-		rect = objects[0];
-	}
-
-	if (rect) {
-		grey = grey.getRegion(rect);
-		frame.drawRectangle(rect, new cv.Vec3(0, 255, 0));
-		rectFounded = true;
-	}
-
-	cv.imencodeAsync('.jpg', frame)
-		.then(res => onEncodedAsync(res))
-		.catch(err => console.log(err));
-
-	return;
-
-	if (!rectFounded) {
+setInterval(async () => {
+	if (!socket.connected) {
 		return;
 	}
 
-	/**
-	 * @param {{ label: any; confidence: any; }} res
-	 */
-	/**
-	 * @param {any} err
-	 */
-	recognizer
-		.predictAsync(grey)
-		.then(res => onPrediction(res, trainersArr))
-		.catch(err => console.error(err));
-}
+	const encoded = await wCap
+		.readAsync()
+		// .then(frame => frame.bgrToGrayAsync())
+		.then(grey => grey.rescaleAsync(0.5))
+		// .then(res => res.getDataAsync())
+		.then(res => cv.imencodeAsync('.jpg', res));
 
-async function initAsync() {
-	// using async await
-	try {
-		console.log(`start processing images...`);
+	const sizeKB = encoded.byteLength / 1000 / 8;
 
-		const realtivepath = path.join(__dirname, '/images/trainers');
-		const trainers = fs.readdirSync(realtivepath);
-		let trainersPromiseArr = [];
-		let trainersArr = [];
-
-		// remove DS_STORE if exist
-		if (trainers[0] == '.DS_Store') {
-			trainers.splice(0, 1);
-		}
-
-		for (let i = 0; i < trainers.length; i++) {
-			const imaegsFolder = path.join(realtivepath, trainers[i]);
-			const images = fs.readdirSync(imaegsFolder);
-
-			// remove DS_STORE if exist
-			if (images[0] == '.DS_Store') {
-				images.splice(0, 1);
-			}
-
-			for (let j = 0; j < images.length; j++) {
-				trainersPromiseArr.push(
-					readfileAsync(
-						path.join(imaegsFolder, images[j]),
-						trainersArr
-					)
-				);
-			}
-		}
-
-		await Promise.all(trainersPromiseArr);
-
-		const recognizer = new LBPHFaceRecognizer();
-
-		await recognizer.trainAsync(
-			trainersArr.map(v => v.grey),
-			trainersArr.map((v, i) => i)
-		);
-
-		let isRecognized = false;
-
-		// setInterval(async () => {
-
-		// }, 1000 / FPS);
-
-		// const stream = new StreamCamera({
-		// 	codec: Codec.MJPEG,
-		// 	width: 640,
-		//     height: 480,
-		//     fps: 15
-		// });
-
-		// const video = stream.createStream();
-
-		// await stream.startCapture();
-
-		// We can also listen to data events as they arrive
-		// video.on('data', async data => onFrame(recognizer, trainersArr, data));
-		// video.on('end', data => console.log('Video stream has ended'));
-
-		picamera.on('frame', async data =>
-			onFrame(recognizer, trainersArr, data)
-		);
-
-		const picameraOptions = {
-			width: 640,
-			height: 480,
-			fps: 15,
-			encoding: 'JPEG',
-			quality: 50
-		};
-		// start capture
-		picamera.start(picameraOptions, () =>
-			console.log('[CAMERA] started..')
-		);
-	} catch (err) {
-		console.error(err);
-	}
-}
-
-/**
- * @param {{ confidence: number; }} min
- * @param {{ confidence: number; }} next
- */
-function minExpression(min, next) {
-	return min.confidence < next.confidence ? min : next;
-}
-
-/*
- *   Start process
- */
-
-initAsync();
+	socket
+		// verificare la corretta
+		// compressione del buffer
+		// .compress(false)
+		.emit('imageToAnalyze', encoded /*.toString('base64')*/);
+	console.log(`[SOCKET] sending buffer img ${sizeKB} KB`);
+}, 1000 / 15);
