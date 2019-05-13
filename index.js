@@ -55,8 +55,8 @@ async function onFrame(charData) {
 picamera.on('frame', async charData => onFrame(charData));
 
 const picameraOptions = {
-	width: 640,
-	height: 480,
+	width: 300,
+	height: 300,
 	fps: 15,
 	encoding: 'JPEG',
 	quality: 50
