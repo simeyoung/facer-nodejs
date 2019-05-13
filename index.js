@@ -34,8 +34,8 @@ async function onFrame(charData) {
 		// decode, transform gray, rescale and encode image
 		const encoded = await cv
 			.imdecodeAsync(charData)
-			.then(frame => frame.bgrToGrayAsync())
-			.then(grey => grey.rescaleAsync(0.5))
+			// .then(frame => frame.bgrToGrayAsync())
+			.then(frame => frame.rescaleAsync(0.5))
 			.then(res => cv.imencodeAsync('.jpg', res));
 
 		const sizeKB = encoded.byteLength / 1000 / 8;
@@ -55,8 +55,8 @@ async function onFrame(charData) {
 picamera.on('frame', async charData => onFrame(charData));
 
 const picameraOptions = {
-	width: 300,
-	height: 300,
+	width: 640,
+	height: 480,
 	fps: 15,
 	encoding: 'JPEG',
 	quality: 50
