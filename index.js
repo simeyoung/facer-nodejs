@@ -3,7 +3,8 @@ const cv = require('opencv4nodejs');
 // @ts-ignore
 const picamera = require('raspberry-pi-camera-native');
 const io = require('socket.io-client');
-const socket = io('http://10.50.120.70:3000');
+// const socket = io('http://10.50.120.70:3000');
+const socket = io('http://localhost:5600');
 
 socket.on('connect', () => {
 	console.log(`[SOCKET] websocket connected`);
@@ -57,7 +58,7 @@ picamera.on('frame', async charData => onFrame(charData));
 const picameraOptions = {
 	width: 640,
 	height: 480,
-	fps: 15,
+	fps: 7,
 	encoding: 'JPEG',
 	quality: 50
 };
@@ -89,4 +90,4 @@ picamera.start(picameraOptions);
 // 		// .compress(false)
 // 		.emit('imageToAnalyze', encoded /*.toString('base64')*/);
 // 	console.log(`[SOCKET] sending buffer img ${sizeKB} KB`);
-// }, 1000 / 15);
+// }, 1000 / 7);
