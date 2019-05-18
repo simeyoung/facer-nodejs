@@ -3,8 +3,8 @@ const cv = require('opencv4nodejs');
 // @ts-ignore
 const picamera = require('raspberry-pi-camera-native');
 const io = require('socket.io-client');
-// const socket = io('http://10.50.120.70:3000');
-const socket = io('http://localhost:5600');
+const socket = io('http://10.50.120.205:5600');
+// const socket = io('http://localhost:5600');
 
 socket.on('connect', () => {
 	console.log(`[SOCKET] websocket connected`);
